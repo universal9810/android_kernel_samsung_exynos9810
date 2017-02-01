@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/cpufreq.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/cpu_pm.h>

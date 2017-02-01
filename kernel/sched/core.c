@@ -41,6 +41,7 @@
 #include <linux/debug_locks.h>
 #include <linux/perf_event.h>
 #include <linux/security.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/notifier.h>
 #include <linux/profile.h>
 #include <linux/freezer.h>
