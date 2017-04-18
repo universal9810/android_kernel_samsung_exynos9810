@@ -1652,6 +1652,15 @@ static int allocate_cmdlines_buffer(unsigned int val,
 		return -ENOMEM;
 	}
 
+	s->map_cmdline_to_tgid = kmalloc_array(val,
+					       sizeof(*s->map_cmdline_to_tgid),
+					       GFP_KERNEL);
+	if (!s->map_cmdline_to_tgid) {
+		kfree(s->map_cmdline_to_pid);
+		kfree(s->saved_cmdlines);
+		return -ENOMEM;
+	}
+
 	s->cmdline_idx = 0;
 	s->cmdline_num = val;
 	memset(&s->map_pid_to_cmdline, NO_CMDLINE_MAP,
@@ -1925,9 +1934,6 @@ int trace_find_tgid(int pid)
 	arch_spin_lock(&trace_cmdline_lock);
 
 	tgid = __find_tgid_locked(pid);
-
-	arch_spin_unlock(&trace_cmdline_lock);
-	preempt_enable();
 
 	return tgid;
 }
@@ -4427,7 +4433,6 @@ tracing_saved_cmdlines_size_read(struct file *filp, char __user *ubuf,
 	unsigned int n;
 
 	preempt_disable();
-
 	arch_spin_lock(&trace_cmdline_lock);
 	n = savedcmd->cmdline_num;
 	arch_spin_unlock(&trace_cmdline_lock);
