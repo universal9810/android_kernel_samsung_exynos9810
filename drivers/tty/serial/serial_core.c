@@ -176,6 +176,7 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 {
 	struct uart_port *uport = uart_port_check(state);
 	void *addr;
+	unsigned long flags = 0;
 	int retval = 0;
 
 	if (uport->type == PORT_UNKNOWN)
@@ -190,6 +191,7 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 	 * Initialise and allocate the transmit and temporary
 	 * buffer.
 	 */
+	uart_port_lock(state, flags);
 	if (!state->xmit.buf) {
 		/* This is protected by the per port mutex */
 		addr = alloc_pages_exact(PAGE_SIZE * 4, GFP_KERNEL|__GFP_ZERO);
@@ -199,6 +201,7 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		state->xmit.buf = (unsigned char *) addr;
 		uart_circ_clear(&state->xmit);
 	}
+	uart_port_unlock(uport, flags);
 
 	retval = uport->ops->startup(uport);
 	if (retval == 0) {
@@ -257,6 +260,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 {
 	struct uart_port *uport = uart_port_check(state);
 	struct tty_port *port = &state->port;
+	unsigned long flags = 0;
 
 	/*
 	 * Set the TTY IO error marker
@@ -289,10 +293,12 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	/*
 	 * Free the transmit buffer page.
 	 */
+	uart_port_lock(state, flags);
 	if (state->xmit.buf) {
 		free_pages_exact((void *)state->xmit.buf, PAGE_SIZE * 4);
 		state->xmit.buf = NULL;
 	}
+	uart_port_unlock(uport, flags);
 }
 
 /**
