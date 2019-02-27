@@ -81,6 +81,7 @@
 #include <asm/uaccess.h>
 
 static DEFINE_IDR(loop_index_idr);
+static DEFINE_MUTEX(loop_index_mutex);
 static DEFINE_MUTEX(loop_ctl_mutex);
 
 static int max_part;
@@ -1616,11 +1617,9 @@ static int lo_compat_ioctl(struct block_device *bdev, fmode_t mode,
 static int lo_open(struct block_device *bdev, fmode_t mode)
 {
 	struct loop_device *lo;
-	int err;
+	int err = 0;
 
-	err = mutex_lock_killable(&loop_ctl_mutex);
-	if (err)
-		return err;
+	mutex_lock(&loop_index_mutex);
 	lo = bdev->bd_disk->private_data;
 	if (!lo) {
 		err = -ENXIO;
@@ -1629,7 +1628,7 @@ static int lo_open(struct block_device *bdev, fmode_t mode)
 
 	atomic_inc(&lo->lo_refcnt);
 out:
-	mutex_unlock(&loop_ctl_mutex);
+	mutex_unlock(&loop_index_mutex);
 	return err;
 }
 
@@ -1638,11 +1637,12 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 	struct loop_device *lo;
 	int err;
 
-	mutex_lock(&loop_ctl_mutex);
+	mutex_lock(&loop_index_mutex);
 	lo = disk->private_data;
 	if (atomic_dec_return(&lo->lo_refcnt))
-		goto out_unlock;
+		goto unlock_index;
 
+	mutex_lock(&loop_ctl_mutex);
 	if (lo->lo_flags & LO_FLAGS_AUTOCLEAR) {
 		/*
 		 * In autoclear mode, stop the loop thread
@@ -1650,7 +1650,7 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 		 */
 		err = loop_clr_fd(lo);
 		if (!err)
-			return;
+			goto unlock_index;
 	} else {
 		/*
 		 * Otherwise keep thread (if running) and config,
@@ -1659,8 +1659,9 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 		loop_flush(lo);
 	}
 
-out_unlock:
 	mutex_unlock(&loop_ctl_mutex);
+unlock_index:
+	mutex_unlock(&loop_index_mutex);
 }
 
 static const struct block_device_operations lo_fops = {
@@ -1947,7 +1948,7 @@ static struct kobject *loop_probe(dev_t dev, int *part, void *data)
 	struct kobject *kobj;
 	int err;
 
-	mutex_lock(&loop_ctl_mutex);
+	mutex_lock(&loop_index_mutex);
 	err = loop_lookup(&lo, MINOR(dev) >> part_shift);
 	if (err < 0)
 		err = loop_add(&lo, MINOR(dev) >> part_shift);
@@ -1955,7 +1956,7 @@ static struct kobject *loop_probe(dev_t dev, int *part, void *data)
 		kobj = NULL;
 	else
 		kobj = get_disk(lo->lo_disk);
-	mutex_unlock(&loop_ctl_mutex);
+	mutex_unlock(&loop_index_mutex);
 
 	*part = 0;
 	return kobj;
@@ -1965,13 +1966,9 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 			       unsigned long parm)
 {
 	struct loop_device *lo;
-	int ret;
+	int ret = -ENOSYS;
 
-	ret = mutex_lock_killable(&loop_ctl_mutex);
-	if (ret)
-		return ret;
-
-	ret = -ENOSYS;
+	mutex_lock(&loop_index_mutex);
 	switch (cmd) {
 	case LOOP_CTL_ADD:
 		ret = loop_lookup(&lo, parm);
@@ -1985,6 +1982,7 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 		ret = loop_lookup(&lo, parm);
 		if (ret < 0)
 			break;
+		mutex_lock(&loop_ctl_mutex);
 		if (lo->lo_state != Lo_unbound) {
 			ret = -EBUSY;
 			mutex_unlock(&loop_ctl_mutex);
@@ -1996,6 +1994,7 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 		lo->lo_disk->private_data = NULL;
+		mutex_unlock(&loop_ctl_mutex);
 		idr_remove(&loop_index_idr, lo->lo_number);
 		loop_remove(lo);
 		break;
@@ -2005,7 +2004,7 @@ static long loop_control_ioctl(struct file *file, unsigned int cmd,
 			break;
 		ret = loop_add(&lo, -1);
 	}
-	mutex_unlock(&loop_ctl_mutex);
+	mutex_unlock(&loop_index_mutex);
 
 	return ret;
 }
@@ -2088,10 +2087,10 @@ static int __init loop_init(void)
 				  THIS_MODULE, loop_probe, NULL, NULL);
 
 	/* pre-create number of devices given by config or max_loop */
-	mutex_lock(&loop_ctl_mutex);
+	mutex_lock(&loop_index_mutex);
 	for (i = 0; i < nr; i++)
 		loop_add(&lo, i);
-	mutex_unlock(&loop_ctl_mutex);
+	mutex_unlock(&loop_index_mutex);
 
 	printk(KERN_INFO "loop: module loaded\n");
 	return 0;
