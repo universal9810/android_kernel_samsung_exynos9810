@@ -29,6 +29,10 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	    !cpumask_test_cpu(smp_processor_id(), affinity))
 		return false;
 
+	/* Do not move IRQ if it is performance critical */
+	if (irqd_has_set(d, IRQD_PERF_CRITICAL))
+		return false;
+
 	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 		affinity = cpu_online_mask;
 		ret = true;
