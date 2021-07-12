@@ -11,6 +11,7 @@
 #include <linux/fb.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
+#include <uapi/linux/sched/types.h>
 
 static unsigned long devfreq_boost_freq = CONFIG_DEVFREQ_EXYNOS_MIF_BOOST_FREQ;
 unsigned short devfreq_boost_dur = CONFIG_DEVFREQ_BOOST_DURATION_MS;
