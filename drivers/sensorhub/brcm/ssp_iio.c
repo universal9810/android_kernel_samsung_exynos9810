@@ -26,6 +26,7 @@
 #else
 #include <linux/battery/sec_charging_common.h>
 #endif
+#include <linux/power_supply.h>
 
 static struct sensor_info info_table[] = {
 	SENSOR_INFO_ACCELEROMETER,
@@ -38,6 +39,7 @@ static struct sensor_info info_table[] = {
 	SENSOR_INFO_PRESSURE,
 	SENSOR_INFO_LIGHT,
 	SENSOR_INFO_LIGHT_IR,
+	SENSOR_INFO_UNCAL_LIGHT,
 	SENSOR_INFO_LIGHT_FLICKER,
 	SENSOR_INFO_PROXIMITY,
 	SENSOR_INFO_PROXIMITY_ALERT,
@@ -55,7 +57,11 @@ static struct sensor_info info_table[] = {
 	SENSOR_INFO_PROXIMITY_POCKET,
 	SENSOR_INFO_ACCEL_UNCALIBRATED,
 	SENSOR_INFO_META,
-	SENSOR_INFO_WAKE_UP_MOTION, 
+	SENSOR_INFO_WAKE_UP_MOTION,
+	SENSOR_INFO_MOVE_DETECTOR,
+	SENSOR_INFO_CALL_GESTURE,
+	SENSOR_INFO_LED_COVER_EVENT,
+	SENSOR_INFO_POCKET_MODE_LITE,
 };
 
 #define IIO_ST(si, rb, sb, sh)	\
@@ -257,6 +263,31 @@ void report_pressure_data(struct ssp_data *data, struct sensor_value *predata)
 
 void report_light_data(struct ssp_data *data, struct sensor_value *lightdata)
 {
+	if(!data->camera_lux_en && (lightdata->lux <= 100) && (data->brightness >= 60))
+	{
+
+		if(data->light_log_cnt == 0)
+		{
+			pr_info("[SSP]: Light AB Sensor : report first lux form light sensor");
+			report_camera_lux_data(data, lightdata->lux);
+		}
+
+		pr_info("[SSP]: Light AB Sensor : report cam enable");
+		data->camera_lux_en = true;
+		lightdata->lux = CAMERA_LUX_ENABLE;
+	}
+	else if(data->camera_lux_en && ((lightdata->lux >= 200) || (data->brightness < 60)))
+	{
+	    pr_info("[SSP]: Light AB Sensor : report cam disable");
+		data->camera_lux_en = false;
+		lightdata->lux = CAMERA_LUX_DISABLE;
+	}
+	else if(data->camera_lux_en)
+	{
+		pr_err("[SSP]: Light AB Sensor : report skip(camera_lux_en=%d)", data->camera_lux_en);
+		return;
+	}
+	
 	report_iio_data(data, LIGHT_SENSOR, lightdata);
 
 	if (data->light_log_cnt < 3) {
@@ -272,6 +303,30 @@ void report_light_data(struct ssp_data *data, struct sensor_value *lightdata)
 #endif
 		data->light_log_cnt++;
 	}
+}
+
+void report_uncal_light_data(struct ssp_data *data, struct sensor_value *lightdata)
+{
+	report_iio_data(data, UNCAL_LIGHT_SENSOR, lightdata);
+
+	if (data->light_log_cnt < 3) {
+		ssp_dbg("[SSP] #>UL lux=%u cct=%d r=%d g=%d b=%d c=%d atime=%d again=%d",
+			data->buf[UNCAL_LIGHT_SENSOR].lux, data->buf[UNCAL_LIGHT_SENSOR].cct,
+			data->buf[UNCAL_LIGHT_SENSOR].r, data->buf[UNCAL_LIGHT_SENSOR].g, data->buf[UNCAL_LIGHT_SENSOR].b,
+			data->buf[UNCAL_LIGHT_SENSOR].w, data->buf[UNCAL_LIGHT_SENSOR].a_time, data->buf[UNCAL_LIGHT_SENSOR].a_gain);
+
+		data->light_log_cnt++;
+	}
+}
+
+void report_camera_lux_data(struct ssp_data *data, int lux)
+{
+	pr_info("[SSP]: %s: %d", __func__, lux);
+
+	data->buf[LIGHT_SENSOR].lux = lux;
+	ssp_push_iio_buffer(data->indio_dev[LIGHT_SENSOR], get_current_timestamp(),
+	                     (char *)&data->buf[LIGHT_SENSOR], sensors_info[LIGHT_SENSOR].report_data_len);
+
 }
 
 #ifdef CONFIG_SENSORS_SSP_IRDATA_FOR_CAMERA
@@ -334,9 +389,9 @@ void report_prox_raw_data(struct ssp_data *data,
 {
 	if (data->uFactoryProxAvg[0]++ >= PROX_AVG_READ_NUM) {
 		data->uFactoryProxAvg[2] /= PROX_AVG_READ_NUM;
-		data->buf[PROXIMITY_RAW].prox_raw[1] = (u16)data->uFactoryProxAvg[1];
-		data->buf[PROXIMITY_RAW].prox_raw[2] = (u16)data->uFactoryProxAvg[2];
-		data->buf[PROXIMITY_RAW].prox_raw[3] = (u16)data->uFactoryProxAvg[3];
+		data->buf[PROXIMITY_RAW].prox_raw[1] = data->uFactoryProxAvg[1];
+		data->buf[PROXIMITY_RAW].prox_raw[2] = data->uFactoryProxAvg[2];
+		data->buf[PROXIMITY_RAW].prox_raw[3] = data->uFactoryProxAvg[3];
 
 		data->uFactoryProxAvg[0] = 0;
 		data->uFactoryProxAvg[1] = 0;
@@ -412,6 +467,39 @@ void report_wakeup_motion_data(struct ssp_data *data,
 	report_iio_data(data, WAKE_UP_MOTION, wakeup_motion_data);
 	wake_lock_timeout(&data->ssp_wake_lock, 0.3*HZ);
 	pr_err("[SSP]: %s: %d", __func__,  wakeup_motion_data->wakeup_motion);
+}
+
+void report_move_detector_data(struct ssp_data *data, struct sensor_value *move_detector_data)
+{
+//	memcpy(&data->buf[MOVE_DETECTOR], &move_detector_data->wakeup_move_event[1], sensors_info[MOVE_DETECTOR].get_data_len);
+//	ssp_push_iio_buffer(data->indio_dev[MOVE_DETECTOR], move_detector_data->timestamp, 
+//		(u8 *)(&data->buf[MOVE_DETECTOR]), sensors_info[MOVE_DETECTOR].report_data_len);
+	report_iio_data(data, MOVE_DETECTOR, move_detector_data);
+	wake_lock_timeout(&data->ssp_wake_lock, 0.3*HZ);
+	pr_err("[SSP]: %s: %d", __func__,  move_detector_data->move_detect);
+}
+
+void report_call_gesture_data(struct ssp_data *data, struct sensor_value *call_gesture_data)
+{
+	report_iio_data(data, CALL_GESTURE, call_gesture_data);
+	wake_lock_timeout(&data->ssp_wake_lock, 0.3*HZ);
+	pr_err("[SSP]: %s: %d", __func__,  call_gesture_data->call_gesture);
+}
+
+void report_led_cover_event_data(struct ssp_data *data, struct sensor_value *led_cover_event_data)
+{
+	report_iio_data(data, LED_COVER_EVENT_SENSOR, led_cover_event_data);
+	wake_lock_timeout(&data->ssp_wake_lock, 0.3*HZ);
+	pr_err("[SSP]: %s: %d ts: %llu", __func__,  led_cover_event_data->led_cover_event, led_cover_event_data->timestamp);
+}
+
+void report_pocket_mode_lite_data(struct ssp_data *data, struct sensor_value *pocket_mode_lite_data)
+{
+	report_iio_data(data, POCKET_MODE_LITE, pocket_mode_lite_data);
+	wake_lock_timeout(&data->ssp_wake_lock, 0.3*HZ);
+	pr_err("[SSP]: %s: %d %d ts: %llu", __func__,
+		pocket_mode_lite_data->pocket_mode_lite_t.prox, 
+		pocket_mode_lite_data->pocket_mode_lite_t.lux, pocket_mode_lite_data->timestamp);
 }
 
 void report_scontext_data(struct ssp_data *data,
