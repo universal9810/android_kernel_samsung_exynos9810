@@ -52,9 +52,9 @@ static ssize_t light_lux_show(struct device *dev,
 	struct ssp_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u,%u,%u,%u,%u,%u\n",
-		data->buf[LIGHT_SENSOR].r, data->buf[LIGHT_SENSOR].g,
-		data->buf[LIGHT_SENSOR].b, data->buf[LIGHT_SENSOR].w,
-		data->buf[LIGHT_SENSOR].a_time, data->buf[LIGHT_SENSOR].a_gain);
+		data->buf[UNCAL_LIGHT_SENSOR].r, data->buf[UNCAL_LIGHT_SENSOR].g,
+		data->buf[UNCAL_LIGHT_SENSOR].b, data->buf[UNCAL_LIGHT_SENSOR].w,
+		data->buf[UNCAL_LIGHT_SENSOR].a_time, data->buf[UNCAL_LIGHT_SENSOR].a_gain);
 }
 
 static ssize_t light_data_show(struct device *dev,
@@ -63,9 +63,9 @@ static ssize_t light_data_show(struct device *dev,
 	struct ssp_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u,%u,%u,%u,%u,%u\n",
-		data->buf[LIGHT_SENSOR].r, data->buf[LIGHT_SENSOR].g,
-		data->buf[LIGHT_SENSOR].b, data->buf[LIGHT_SENSOR].w,
-		data->buf[LIGHT_SENSOR].a_time, data->buf[LIGHT_SENSOR].a_gain);
+		data->buf[UNCAL_LIGHT_SENSOR].r, data->buf[UNCAL_LIGHT_SENSOR].g,
+		data->buf[UNCAL_LIGHT_SENSOR].b, data->buf[UNCAL_LIGHT_SENSOR].w,
+		data->buf[UNCAL_LIGHT_SENSOR].a_time, data->buf[UNCAL_LIGHT_SENSOR].a_gain);
 }
 
 static ssize_t light_coef_show(struct device *dev,

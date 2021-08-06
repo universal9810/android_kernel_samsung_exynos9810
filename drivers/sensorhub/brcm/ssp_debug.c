@@ -234,6 +234,9 @@ int print_mcu_debug(char *pchRcvDataFrame, int *pDataIdx,
 		return iLength ? iLength : ERROR;
 	}
 
+#if SSP_DBG
+	ssp_dbg("[SSP]: MSG From MCU - %s\n", &pchRcvDataFrame[cur]);
+#endif
 	*pDataIdx += iLength;
 	return 0;
 }
@@ -366,6 +369,7 @@ static void print_sensordata(struct ssp_data *data, unsigned int uSensor)
 			get_msdelay(data->adDelayBuf[uSensor]));
 		break;
 	case LIGHT_SENSOR:
+	case UNCAL_LIGHT_SENSOR:
 		ssp_dbg("[SSP] %u : %u, %u, %u, %u, %u, %u (%ums)\n", uSensor,
 			data->buf[uSensor].r, data->buf[uSensor].g,
 			data->buf[uSensor].b, data->buf[uSensor].w,
@@ -465,8 +469,30 @@ static void print_sensordata(struct ssp_data *data, unsigned int uSensor)
 		break;
 	case WAKE_UP_MOTION:
 		ssp_dbg("[SSP] %u : %d (%ums)\n", uSensor,
-			data->buf[uSensor].wakeup_motion,
-			get_msdelay(data->adDelayBuf[uSensor]));
+		data->buf[uSensor].wakeup_motion,
+		get_msdelay(data->adDelayBuf[uSensor]));
+		break;
+    case CALL_GESTURE:
+		ssp_dbg("[SSP] %u : %d (%ums)\n", uSensor,
+		data->buf[uSensor].call_gesture,
+		get_msdelay(data->adDelayBuf[uSensor]));
+		break;
+    case MOVE_DETECTOR:
+		ssp_dbg("[SSP] %u : %d (%ums)\n", uSensor,
+		data->buf[uSensor].move_detect,
+		get_msdelay(data->adDelayBuf[uSensor]));
+		break;
+	case LED_COVER_EVENT_SENSOR:
+		ssp_dbg("[SSP] %u : %d (%ums)\n", uSensor,
+		data->buf[uSensor].led_cover_event,
+		get_msdelay(data->adDelayBuf[uSensor]));
+		break;
+	case POCKET_MODE_LITE:
+		ssp_dbg("[SSP] %u : %d %d(%ums)\n", uSensor,
+		data->buf[uSensor].pocket_mode_lite_t.prox,
+		data->buf[uSensor].pocket_mode_lite_t.lux,
+		get_msdelay(data->adDelayBuf[uSensor]));
+		break;
 	case BULK_SENSOR:
 	case GPS_SENSOR:
 		break;
