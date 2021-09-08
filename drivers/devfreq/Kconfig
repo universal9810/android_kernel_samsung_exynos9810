@@ -183,11 +183,11 @@ config DEVFREQ_BOOST
 
 if DEVFREQ_BOOST
 
-config DEVFREQ_INPUT_BOOST_DURATION_MS
-	int "Input boost duration"
+config DEVFREQ_BOOST_DURATION_MS
+	int "Devfreq boost duration"
 	default "100"
 	help
-	  Input boost duration in milliseconds for all boostable devices.
+	  Devfreq boost duration in milliseconds for all boostable devices.
 
 config DEVFREQ_WAKE_BOOST_DURATION_MS
 	int "Wake boost duration"
