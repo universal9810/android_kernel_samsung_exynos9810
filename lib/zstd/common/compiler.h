@@ -159,7 +159,7 @@
  * - CPP17: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
  * - Else: __attribute__((__fallthrough__))
  */
-#define ZSTD_FALLTHROUGH fallthrough
+#define ZSTD_FALLTHROUGH /* fall through */
 
 /* detects whether we are being compiled under msan */
 

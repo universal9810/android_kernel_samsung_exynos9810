@@ -22,7 +22,7 @@
 ******************************************/
 #include "zstd_deps.h"    /* size_t, ptrdiff_t */
 
-
+#include <stddef.h>
 /*-*****************************************
 *  FSE_PUBLIC_API : control library symbols visibility
 ******************************************/
