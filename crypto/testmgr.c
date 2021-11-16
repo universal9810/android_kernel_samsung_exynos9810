@@ -4302,22 +4302,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 				}
 			}
 		}
-	}, {
-		.alg = "zstd",
-		.test = alg_test_comp,
-		.fips_allowed = 1,
-		.suite = {
-			.comp = {
-				.comp = {
-					.vecs = zstd_comp_tv_template,
-					.count = 2
-				},
-				.decomp = {
-					.vecs = zstd_decomp_tv_template,
-					.count = 2
-				}
-			}
-		}
 	}
 };
 
