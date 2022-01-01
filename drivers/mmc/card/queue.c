@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/version.h>
 #include <linux/backing-dev.h>
+#include <uapi/linux/sched/types.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
