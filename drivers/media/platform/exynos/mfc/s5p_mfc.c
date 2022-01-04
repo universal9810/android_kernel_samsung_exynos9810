@@ -19,6 +19,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/devfreq_boost.h>
+#include <linux/cpu_input_boost.h>
 
 #include "s5p_mfc_common.h"
 
@@ -458,6 +459,7 @@ static int s5p_mfc_open(struct file *file)
 	if (node == MFCNODE_DECODER) {
 		dev->num_dec++;
 		if (dev->num_dec == 1)
+			disable_cib_video_boost(true);
 			disable_devfreq_video_boost(true);
 	}
 
@@ -611,6 +613,7 @@ err_ctx_alloc:
 	if (node == MFCNODE_DECODER) {
 		dev->num_dec--;
 		if (dev->num_dec == 0)
+		        disable_cib_video_boost(false);
 			disable_devfreq_video_boost(false);
 	}
 
@@ -718,6 +721,7 @@ static int s5p_mfc_release(struct file *file)
 	if (ctx->type == MFCINST_DECODER && !ctx->is_drm) {
 		dev->num_dec--;
 		if (dev->num_dec == 0)
+			disable_cib_video_boost(false);
 			disable_devfreq_video_boost(false);
 	}
 

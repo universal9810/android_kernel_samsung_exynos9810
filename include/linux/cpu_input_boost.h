@@ -7,8 +7,13 @@
 
 #ifdef CONFIG_CPU_INPUT_BOOST
 void cpu_input_boost_kick_max(unsigned int duration_ms);
+void disable_cib_video_boost(int disable);
 #else
 static inline void cpu_input_boost_kick_max(unsigned int duration_ms)
+{
+}
+static inline
+void disable_cib_video_boost(int disable)
 {
 }
 #endif
