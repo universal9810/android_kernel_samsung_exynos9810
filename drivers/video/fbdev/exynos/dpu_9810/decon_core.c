@@ -48,6 +48,7 @@
 #include "../../../../dma-buf/sync_debug.h"
 #include "dpp.h"
 #include <linux/devfreq_boost.h>
+#include <linux/cpu_input_boost.h>
 #include "displayport.h"
 
 int decon_log_level = 0;
@@ -2562,6 +2563,7 @@ static int decon_set_win_config(struct decon_device *decon,
 	}
 #endif
 	num_of_window = decon_get_active_win_count(decon, win_data);
+                cpu_input_boost_kick_max(60);
 	        devfreq_boost_kick(DEVFREQ_EXYNOS_MIF);
 	if (num_of_window) {
 		win_data->retire_fence = decon_create_fence(decon, &sync_file);
@@ -2587,6 +2589,7 @@ static int decon_set_win_config(struct decon_device *decon,
 			sizeof(struct decon_rect));
 
 	if (num_of_window) {
+                cpu_input_boost_kick_max(60);
 		devfreq_boost_kick(DEVFREQ_EXYNOS_MIF);
 #if defined(CONFIG_DPU_2_0_RELEASE_FENCES)
 		decon_create_release_fences(decon, win_data, sync_file);
