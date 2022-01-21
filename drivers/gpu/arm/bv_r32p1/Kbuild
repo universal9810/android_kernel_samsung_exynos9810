@@ -67,7 +67,7 @@ endif
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= '"r32p1-01eac0"'
+MALI_RELEASE_NAME ?= '"r32p1-01bet2"'
 # Set up defaults if not defined by build system
 ifeq ($(CONFIG_MALI_DEBUG), y)
     MALI_UNIT_TEST = 1
@@ -78,7 +78,7 @@ else
 endif
 MALI_COVERAGE ?= 0
 
-CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
+CONFIG_MALI_PLATFORM_NAME ?= "exynos"
 
 # Kconfig passes in the name with quotes for in-tree builds - remove them.
 MALI_PLATFORM_DIR := $(shell echo $(CONFIG_MALI_PLATFORM_NAME))
@@ -123,17 +123,17 @@ ccflags-y = \
 
 ifeq ($(KBUILD_EXTMOD),)
 # in-tree
-    ccflags-y +=-DMALI_KBASE_PLATFORM_PATH=../../$(src)/platform/$(CONFIG_MALI_PLATFORM_NAME)
+    ccflags-y +=-DMALI_KBASE_PLATFORM_PATH=../../$(src)/../$(CONFIG_MALI_PLATFORM_NAME)
 else
 # out-of-tree
-    ccflags-y +=-DMALI_KBASE_PLATFORM_PATH=$(src)/platform/$(CONFIG_MALI_PLATFORM_NAME)
+    ccflags-y +=-DMALI_KBASE_PLATFORM_PATH=$(src)/../$(CONFIG_MALI_PLATFORM_NAME)
 endif
 
 ccflags-y += \
     -I$(srctree)/include/linux \
     -I$(srctree)/drivers/staging/android \
     -I$(src) \
-    -I$(src)/platform/$(MALI_PLATFORM_DIR) \
+    -I$(src)/../$(MALI_PLATFORM_DIR) \
     -I$(src)/../../../base \
     -I$(src)/../../../../include
 
@@ -143,7 +143,7 @@ subdir-ccflags-y += $(ccflags-y)
 # Kernel Modules
 #
 obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
-obj-$(CONFIG_MALI_ARBITRATION) += arbitration/
+# obj-$(CONFIG_MALI_ARBITRATION) += arbitration/
 obj-$(CONFIG_MALI_KUTF)    += tests/
 
 mali_kbase-y := \
@@ -230,7 +230,7 @@ INCLUDE_SUBDIR = \
     $(src)/tl/Kbuild \
     $(src)/gpu/Kbuild \
     $(src)/thirdparty/Kbuild \
-    $(src)/platform/$(MALI_PLATFORM_DIR)/Kbuild
+    $(src)/../$(MALI_PLATFORM_DIR)/Kbuild
 
 ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
     INCLUDE_SUBDIR += $(src)/csf/Kbuild
