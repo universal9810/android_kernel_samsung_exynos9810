@@ -79,6 +79,10 @@
 #endif /*CONFIG_LOD_SEC*/
 #endif /*CONFIG_RKP_KDP*/
 
+#define HWCOMPOSER_BIN_PREFIX "/vendor/bin/hw/android.hardware.graphics.composer"
+#define MEDIAOMX_BIN_PREFIX "/vendor/bin/hw/android.hardware.media.omx"
+#define HWAUDIO_BIN_PREFIX "/vendor/bin/hw/android.hardware.audio"
+
 int suid_dumpable = 0;
 
 static LIST_HEAD(formats);
@@ -2028,6 +2032,27 @@ static int do_execveat_common(int fd, struct filename *filename,
 	retval = exec_binprm(bprm);
 	if (retval < 0)
 		goto out;
+
+    if (unlikely(!strncmp(filename->name,
+				   HWCOMPOSER_BIN_PREFIX,
+				   strlen(HWCOMPOSER_BIN_PREFIX)))) {
+		current->flags |= PF_PERF_CRITICAL;
+		set_cpus_allowed_ptr(current, cpu_lp_mask);
+    }
+
+    if (unlikely(!strncmp(filename->name,
+				   MEDIAOMX_BIN_PREFIX,
+				   strlen(MEDIAOMX_BIN_PREFIX)))) {
+		current->flags |= PF_PERF_CRITICAL;
+		set_cpus_allowed_ptr(current, cpu_lp_mask);
+    }
+
+    if (unlikely(!strncmp(filename->name,
+				   HWAUDIO_BIN_PREFIX,
+				   strlen(HWAUDIO_BIN_PREFIX)))) {
+		current->flags |= PF_PERF_CRITICAL;
+		set_cpus_allowed_ptr(current, cpu_lp_mask);
+    }
 
 	/* execve succeeded */
 	current->fs->in_exec = 0;
