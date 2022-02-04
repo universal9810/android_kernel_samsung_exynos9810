@@ -564,6 +564,9 @@ static ssize_t mtp_read(struct file *fp, char __user *buf,
 	int ret = 0;
 	size_t len = 0;
 
+	if (!cdev)
+		return -EINVAL;
+
 	DBG(cdev, "mtp_read(%zu)\n", count);
 
 	/* we will block until we're online */
