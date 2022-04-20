@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2013-2015 TRUSTONIC LIMITED
+ * Copyright (c) 2013-2017 TRUSTONIC LIMITED
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -12,14 +13,11 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __MC_SCHEDULER_H__
-#define __MC_SCHEDULER_H__
+#ifndef _MC_LOGGING_H_
+#define _MC_LOGGING_H_
 
-int mc_scheduler_init(void);
-static inline void mc_scheduler_exit(void) {}
-int mc_scheduler_start(void);
-void mc_scheduler_stop(void);
-int mc_scheduler_suspend(void);
-int mc_scheduler_resume(void);
+void logging_run(void);
+int logging_init(phys_addr_t *buffer, u32 *size);
+void logging_exit(bool buffer_busy);
 
-#endif /* __MC_SCHEDULER_H__ */
+#endif /* _MC_LOGGING_H_ */

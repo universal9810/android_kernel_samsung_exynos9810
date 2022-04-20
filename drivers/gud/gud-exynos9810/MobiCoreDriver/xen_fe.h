@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2013-2015 TRUSTONIC LIMITED
+ * Copyright (c) 2017-2019 TRUSTONIC LIMITED
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -12,25 +13,23 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _MC_PM_H_
-#define _MC_PM_H_
+#ifndef _MC_XEN_FE_H_
+#define _MC_XEN_FE_H_
 
-#include "platform.h"	/* MC_BL_NOTIFIER */
+#include <linux/version.h>
 
-#ifdef MC_BL_NOTIFIER
-/* Initialize Power Management */
-int mc_pm_start(void);
-/* Free all Power Management resources*/
-void mc_pm_stop(void);
+#include "main.h"
+#include "client.h"
+#include "protocol_common.h"
+
+#ifdef CONFIG_XEN
+struct tee_protocol_ops *xen_fe_check(void);
 #else
-static inline int mc_pm_start(void)
+static inline
+struct tee_protocol_ops *xen_fe_check(void)
 {
-	return 0;
-}
-
-static inline void mc_pm_stop(void)
-{
+	return NULL;
 }
 #endif
 
-#endif /* _MC_PM_H_ */
+#endif /* _MC_XEN_FE_H_ */
