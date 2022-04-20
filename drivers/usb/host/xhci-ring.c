@@ -282,7 +282,9 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 	struct xhci_command *i_cmd;
 	u32 cycle_state;
 
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
 	xhci_info(xhci, "%s \n", __func__);
+#endif
 	/* Turn all aborted commands in list to no-ops, then restart */
 	list_for_each_entry(i_cmd, &xhci->cmd_list, cmd_list) {
 
@@ -291,8 +293,13 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 
 		i_cmd->status = COMP_CMD_STOP;
 
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
 		xhci_info(xhci, "Turn aborted command %p to no-op\n",
 			 i_cmd->command_trb);
+#else
+		xhci_dbg(xhci, "Turn aborted command %p to no-op\n",
+			 i_cmd->command_trb);
+#endif
 		/* get cycle state from the original cmd trb */
 		cycle_state = le32_to_cpu(
 			i_cmd->command_trb->generic.field[3]) &	TRB_CYCLE;
@@ -314,7 +321,9 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 	/* ring command ring doorbell to restart the command ring */
 	if ((xhci->cmd_ring->dequeue != xhci->cmd_ring->enqueue) &&
 	    !(xhci->xhc_state & XHCI_STATE_DYING)) {
-	    xhci_info(xhci, "xhci->xhc_state 0x%x\n", xhci->xhc_state);
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+		xhci_info(xhci, "xhci->xhc_state 0x%x\n", xhci->xhc_state);
+#endif
 		xhci->current_cmd = cur_cmd;
 		xhci_mod_cmd_timer(xhci, XHCI_CMD_DEFAULT_TIMEOUT);
 		xhci_ring_cmd_db(xhci);
@@ -327,7 +336,11 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci, unsigned long flags)
 	u64 temp_64;
 	int ret;
 
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
 	xhci_info(xhci, "Abort command ring\n");
+#else
+	xhci_dbg(xhci, "Abort command ring\n");
+#endif
 
 	reinit_completion(&xhci->cmd_ring_stop_completion);
 
@@ -343,14 +356,14 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci, unsigned long flags)
 	 * larger problems with the xHC and assert HCRST.
 	 */
 	ret = xhci_handshake(&xhci->op_regs->cmd_ring,
-			CMD_RING_RUNNING, 0, 5 * 100 * 1000);
+			CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
 	if (ret < 0) {
 		/* we are about to kill xhci, give it one more chance */
 		xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
 			      &xhci->op_regs->cmd_ring);
 		udelay(1000);
 		ret = xhci_handshake(&xhci->op_regs->cmd_ring,
-				     CMD_RING_RUNNING, 0, 5 * 100 * 1000);
+				     CMD_RING_RUNNING, 0, 3 * 1000 * 1000);
 		if (ret < 0) {
 			xhci_err(xhci, "Stopped the command ring failed, "
 				 "maybe the host is dead\n");
@@ -366,13 +379,17 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci, unsigned long flags)
 	 * but the completion event in never sent. Wait 2 secs (arbitrary
 	 * number) to handle those cases after negation of CMD_RING_RUNNING.
 	 */
+	spin_unlock_irqrestore(&xhci->lock, flags);
 	ret = wait_for_completion_timeout(&xhci->cmd_ring_stop_completion,
 					  msecs_to_jiffies(2000));
+	spin_lock_irqsave(&xhci->lock, flags);
 	if (!ret) {
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
 		xhci_info(xhci, "No stop event for abort, ring start fail?\n");
-		cancel_delayed_work(&xhci->cmd_timer);
+#else
+		xhci_dbg(xhci, "No stop event for abort, ring start fail?\n");
+#endif
 		xhci_cleanup_command_queue(xhci);
-		xhci->current_cmd = NULL;
 	} else {
 		xhci_handle_stopped_cmd_ring(xhci, xhci_next_queued_cmd(xhci));
 	}
@@ -694,16 +711,11 @@ void xhci_unmap_td_bounce_buffer(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	dma_unmap_single(dev, seg->bounce_dma, ring->bounce_buf_len,
 			 DMA_FROM_DEVICE);
 	/* for in tranfers we need to copy the data from bounce to sg */
-	if (urb->num_sgs) {
-		len = sg_pcopy_from_buffer(urb->sg, urb->num_sgs, seg->bounce_buf,
-					   seg->bounce_len, seg->bounce_offs);
-		if (len != seg->bounce_len)
-			xhci_warn(xhci, "WARN Wrong bounce buffer read length: %zu != %d\n",
-				  len, seg->bounce_len);
-	} else {
-		memcpy(urb->transfer_buffer + seg->bounce_offs, seg->bounce_buf,
-		       seg->bounce_len);
-	}
+	len = sg_pcopy_from_buffer(urb->sg, urb->num_sgs, seg->bounce_buf,
+			     seg->bounce_len, seg->bounce_offs);
+	if (len != seg->bounce_len)
+		xhci_warn(xhci, "WARN Wrong bounce buffer read length: %zu != %d\n",
+				len, seg->bounce_len);
 	seg->bounce_len = 0;
 	seg->bounce_offs = 0;
 }
@@ -1309,25 +1321,38 @@ void xhci_handle_command_timeout(struct work_struct *work)
 	hw_ring_state = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
 	if ((xhci->cmd_ring_state & CMD_RING_STATE_RUNNING) &&
 	    (hw_ring_state & CMD_RING_RUNNING))  {
-	    spin_unlock_irqrestore(&xhci->lock, flags);
 		/* Prevent new doorbell, and start command abort */
 		xhci->cmd_ring_state = CMD_RING_STATE_ABORTED;
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
 		xhci_info(xhci, "Command timeout\n");
+#else
+		xhci_dbg(xhci, "Command timeout\n");
+#endif
 		ret = xhci_abort_cmd_ring(xhci, flags);
 		if (unlikely(ret == -ESHUTDOWN)) {
 			xhci_err(xhci, "Abort command ring failed\n");
 			xhci_cleanup_command_queue(xhci);
-			if (!(xhci->xhc_state & XHCI_STATE_REMOVING))
-				usb_hc_died(xhci_to_hcd(xhci)->primary_hcd);
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			usb_hc_died(xhci_to_hcd(xhci)->primary_hcd);
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
 			xhci_err(xhci, "xHCI host controller is dead.\n");
+#else
+			xhci_dbg(xhci, "xHCI host controller is dead.\n");
+#endif
+
 			return;
 		}
-		return;
+
+		goto time_out_completed;
 	}
 
 	/* host removed. Bail out */
 	if (xhci->xhc_state & XHCI_STATE_REMOVING) {
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
 		xhci_info(xhci, "host removed, ring start fail?\n");
+#else
+		xhci_dbg(xhci, "host removed, ring start fail?\n");
+#endif
 		xhci_cleanup_command_queue(xhci);
 
 		goto time_out_completed;
@@ -1620,6 +1645,9 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		usb_hcd_resume_root_hub(hcd);
 	}
 
+	if (hcd->speed >= HCD_USB3 && (temp & PORT_PLS_MASK) == XDEV_INACTIVE)
+		bus_state->port_remote_wakeup &= ~(1 << faked_port_index);
+
 	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_RESUME) {
 		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
 
@@ -1638,7 +1666,6 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			bus_state->port_remote_wakeup |= 1 << faked_port_index;
 			xhci_test_and_clear_bit(xhci, port_array,
 					faked_port_index, PORT_PLC);
-			usb_hcd_start_port_resume(&hcd->self, faked_port_index);
 			xhci_set_link_state(xhci, port_array, faked_port_index,
 						XDEV_U0);
 			/* Need to wait until the next link state change
@@ -1678,6 +1705,8 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		if (slot_id && xhci->devs[slot_id])
 			xhci_ring_device(xhci, slot_id);
 		if (bus_state->port_remote_wakeup & (1 << faked_port_index)) {
+			bus_state->port_remote_wakeup &=
+				~(1 << faked_port_index);
 			xhci_test_and_clear_bit(xhci, port_array,
 					faked_port_index, PORT_PLC);
 			usb_wakeup_notification(hcd->self.root_hub,
@@ -2864,8 +2893,6 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	trb->field[0] = cpu_to_le32(field1);
 	trb->field[1] = cpu_to_le32(field2);
 	trb->field[2] = cpu_to_le32(field3);
-	/* make sure TRB is fully written before giving it to the controller */
-	wmb();
 	trb->field[3] = cpu_to_le32(field4);
 	inc_enq(xhci, ring, more_trbs_coming);
 }
@@ -3209,16 +3236,12 @@ static int xhci_align_td(struct xhci_hcd *xhci, struct urb *urb, u32 enqd_len,
 
 	/* create a max max_pkt sized bounce buffer pointed to by last trb */
 	if (usb_urb_dir_out(urb)) {
-		if (urb->num_sgs) {
-			len = sg_pcopy_to_buffer(urb->sg, urb->num_sgs,
-						 seg->bounce_buf, new_buff_len, enqd_len);
-			if (len != new_buff_len)
-				xhci_warn(xhci, "WARN Wrong bounce buffer write length: %zu != %d\n",
-					  len, new_buff_len);
-		} else {
-			memcpy(seg->bounce_buf, urb->transfer_buffer + enqd_len, new_buff_len);
-		}
-
+		len = sg_pcopy_to_buffer(urb->sg, urb->num_sgs,
+				   seg->bounce_buf, new_buff_len, enqd_len);
+		if (len != seg->bounce_len)
+			xhci_warn(xhci,
+				"WARN Wrong bounce buffer write length: %zu != %d\n",
+				len, seg->bounce_len);
 		seg->bounce_dma = dma_map_single(dev, seg->bounce_buf,
 						 max_pkt, DMA_TO_DEVICE);
 	} else {
@@ -3366,8 +3389,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			/* New sg entry */
 			--num_sgs;
 			sent_len -= block_len;
-			sg = sg_next(sg);
-			if (num_sgs != 0 && sg) {
+			if (num_sgs != 0) {
+				sg = sg_next(sg);
 				block_len = sg_dma_len(sg);
 				addr = (u64) sg_dma_address(sg);
 				addr += sent_len;
@@ -3950,7 +3973,7 @@ static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 
 	if ((xhci->xhc_state & XHCI_STATE_DYING) ||
 		(xhci->xhc_state & XHCI_STATE_HALTED)) {
-		xhci_err(xhci, "xHCI dying or halted, can't queue_command\n");
+		xhci_dbg(xhci, "xHCI dying or halted, can't queue_command\n");
 		return -ESHUTDOWN;
 	}
 
