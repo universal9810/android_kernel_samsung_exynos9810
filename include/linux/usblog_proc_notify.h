@@ -21,6 +21,9 @@ enum usblog_type {
 	NOTIFY_USBMODE_EXTRA,
 	NOTIFY_USBSTATE,
 	NOTIFY_EVENT,
+	NOTIFY_PORT_CONNECT,
+	NOTIFY_PORT_DISCONNECT,
+	NOTIFY_PORT_CLASS,
 	NOTIFY_EXTRA,
 };
 
@@ -70,6 +73,8 @@ enum ccic_device {
 #endif
 	NOTIFY_DEV_DP,
 	NOTIFY_DEV_USB_DP,
+	NOTIFY_DEV_SUB_BATTERY,
+	NOTIFY_DEV_SECOND_MUIC,
 };
 
 enum ccic_id {
@@ -82,6 +87,8 @@ enum ccic_id {
 #endif
 	NOTIFY_ID_WATER,
 	NOTIFY_ID_VCONN,
+	NOTIFY_ID_OTG,
+	NOTIFY_ID_TA,
 	NOTIFY_ID_DP_CONNECT,
 	NOTIFY_ID_DP_HPD,
 	NOTIFY_ID_DP_LINK_CONF,
@@ -89,6 +96,8 @@ enum ccic_id {
 	NOTIFY_ID_ROLE_SWAP,
 	NOTIFY_ID_FAC,
 	NOTIFY_ID_CC_PIN_STATUS,
+	NOTIFY_ID_WATER_CABLE,
+	NOTIFY_ID_POGO,
 };
 
 enum ccic_rid {
@@ -153,6 +162,9 @@ enum extra {
 	NOTIFY_EXTRA_SYSMSG_SBU_GND_SHORT,
 	NOTIFY_EXTRA_SYSMSG_SBU_VBUS_SHORT,
 	NOTIFY_EXTRA_UVDM_TIMEOUT,
+	NOTIFY_EXTRA_CCOPEN_REQ_SET,
+	NOTIFY_EXTRA_CCOPEN_REQ_CLEAR,
+	NOTIFY_EXTRA_USB_ANALOGAUDIO,
 };
 
 #define ALTERNATE_MODE_NOT_READY	(1 << 0)
@@ -162,17 +174,19 @@ enum extra {
 #define ALTERNATE_MODE_RESET		(1 << 4)
 
 #ifdef CONFIG_USB_NOTIFY_PROC_LOG
-extern void store_usblog_notify(int type, void *param1, void *parma2);
+extern void store_usblog_notify(int type, void *param1, void *param2);
 extern void store_ccic_version(unsigned char *hw, unsigned char *sw_main,
 			unsigned char *sw_boot);
+extern unsigned long long show_ccic_version(void);
 extern void store_ccic_bin_version(const unsigned char *sw_main,
 					const unsigned char *sw_boot);
 extern int register_usblog_proc(void);
 extern void unregister_usblog_proc(void);
 #else
-static inline void store_usblog_notify(int type, void *param1, void *parma2) {}
+static inline void store_usblog_notify(int type, void *param1, void *param2) {}
 static inline void store_ccic_version(unsigned char *hw, unsigned char *sw_main,
 			unsigned char *sw_boot) {}
+static inline unsigned long long show_ccic_version(void) {return 0; }
 static inline void store_ccic_bin_version(const unsigned char *sw_main,
 			const unsigned char *sw_boot) {}
 static inline int register_usblog_proc(void)
