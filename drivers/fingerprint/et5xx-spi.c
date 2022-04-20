@@ -790,6 +790,7 @@ static long etspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 			pr_info("%s FP_CPU_SPEEDUP ON:%d, retry: %d\n",
 				__func__, ioc->len, retry_cnt);
+/*
 #if defined(CONFIG_SECURE_OS_BOOSTER_API)
 			do {
 				retval = secos_booster_start(ioc->len - 1);
@@ -804,11 +805,22 @@ static long etspi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #endif
 		} else {
 			pr_info("%s FP_CPU_SPEEDUP OFF\n", __func__);
+*/
+#if defined(CONFIG_TZDEV_BOOST)
+			tz_boost_enable();
+#endif
+		} else {
+			pr_info("%s FP_CPU_SPEEDUP OFF\n", __func__);
+/*
 #if defined(CONFIG_SECURE_OS_BOOSTER_API)
 			retval = secos_booster_stop();
 			if (retval)
 				pr_err("%s: booster stop failed. (%d)\n"
 					, __func__, retval);
+#endif
+*/
+#if defined(CONFIG_TZDEV_BOOST)
+			tz_boost_disable();
 #endif
 		}
 		break;
