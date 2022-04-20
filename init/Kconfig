@@ -65,7 +65,8 @@ config CROSS_COMPILE
 
 config COMPILE_TEST
 	bool "Compile also drivers which will not load"
-	depends on HAS_IOMEM
+	depends on !UML
+	default n
 	help
 	  Some drivers can be compiled on a different platform than they are
 	  intended to be run on. Despite they cannot be loaded there (or even
@@ -882,8 +883,7 @@ config IKCONFIG_PROC
 
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
-	range 12 25 if !H8300
-	range 12 19 if H8300
+	range 12 25
 	default 17
 	depends on PRINTK
 	help
@@ -1195,6 +1195,7 @@ config FAIR_GROUP_SCHED
 config CFS_BANDWIDTH
 	bool "CPU bandwidth provisioning for FAIR_GROUP_SCHED"
 	depends on FAIR_GROUP_SCHED
+	depends on !SCHED_WALT
 	default n
 	help
 	  This option allows users to define CPU bandwidth rates (limits) for
@@ -1842,7 +1843,7 @@ config SHMEM
 
 config AIO
 	bool "Enable AIO support" if EXPERT
-	default y if ANDROID_VERSION >= "90000"
+	default y
 	help
 	  This option enables POSIX asynchronous I/O which may by used
 	  by some high performance threaded applications. Disabling
@@ -1980,14 +1981,19 @@ config SLUB_DEBUG
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
 
-config PTRACK_DEBUG
+config SLUB_MEMCG_SYSFS_ON
 	default n
-	bool "Enable PAGE debugging support"
+	bool "Enable memcg SLUB sysfs support by default" if EXPERT
+	depends on SLUB && SYSFS && MEMCG
 	help
-	  PTRACK support to track when the page is allocated and freed.
-	  The call trace is monitored and saved in the page structure i
-	  whenever the page allocation and free.
-	  This option affects on booting time & running time.
+	  SLUB creates a directory under /sys/kernel/slab for each
+	  allocation cache to host info and debug files. If memory
+	  cgroup is enabled, each cache can have per memory cgroup
+	  caches. SLUB can create the same sysfs directories for these
+	  caches under /sys/kernel/slab/CACHE/cgroup but it can lead
+	  to a very high number of debug files being created. This is
+	  controlled by slub_memcg_sysfs boot parameter and this
+	  config option determines the parameter's default value.
 
 config COMPAT_BRK
 	bool "Disable heap randomization"
@@ -2100,9 +2106,9 @@ config DEFERRED_INITCALLS
 	bool "Deferred initcalls support"
 	default n
 	help
-	  Say 'y' here to include support for deferred initcalls.
-	  If some module init functions set as deferred initcall, they aren't
-	  called until /proc/deferred_initcalls is read.
+		Say 'y' here to include support for deferred initcalls.
+		If some module init functions set as deferred initcall, they aren't
+		alled until /proc/deferred_initcalls is read.
 
 config PROFILING
 	bool "Profiling support"
