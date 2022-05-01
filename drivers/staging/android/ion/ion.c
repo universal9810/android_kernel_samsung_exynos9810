@@ -504,13 +504,6 @@ static void ion_buffer_remove_from_handle(struct ion_buffer *buffer)
 	mutex_unlock(&buffer->lock);
 }
 
-static bool ion_handle_validate(struct ion_client *client,
-				struct ion_handle *handle)
-{
-	WARN_ON(!mutex_is_locked(&client->lock));
-	return idr_find(&client->idr, handle->id) == handle;
-}
-
 static struct ion_handle *ion_handle_create(struct ion_client *client,
 					    struct ion_buffer *buffer)
 {
@@ -619,6 +612,13 @@ struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
 	return ERR_PTR(-EINVAL);
 }
 
+bool ion_handle_validate(struct ion_client *client,
+			 struct ion_handle *handle)
+{
+	WARN_ON(!mutex_is_locked(&client->lock));
+	return idr_find(&client->idr, handle->id) == handle;
+}
+
 static int ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 {
 	int id;
@@ -677,8 +677,8 @@ static size_t ion_buffer_get_total_size_by_pid(struct ion_client *client)
 }
 
 struct ion_handle *__ion_alloc(struct ion_client *client, size_t len,
-			     size_t align, unsigned int heap_id_mask,
-			     unsigned int flags, bool grab_handle)
+			       size_t align, unsigned int heap_id_mask,
+			       unsigned int flags, bool grab_handle)
 {
 	struct ion_handle *handle;
 	struct ion_device *dev = client->dev;
@@ -809,6 +809,9 @@ static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
 	void *vaddr;
 
 	if (buffer->kmap_cnt) {
+		if (buffer->kmap_cnt == INT_MAX)
+			return ERR_PTR(-EOVERFLOW);
+
 		buffer->kmap_cnt++;
 		return buffer->vaddr;
 	}
@@ -830,6 +833,9 @@ static void *ion_handle_kmap_get(struct ion_handle *handle)
 	void *vaddr;
 
 	if (handle->kmap_cnt) {
+		if (handle->kmap_cnt == INT_MAX)
+			return ERR_PTR(-EOVERFLOW);
+
 		handle->kmap_cnt++;
 		return buffer->vaddr;
 	}
